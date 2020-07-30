@@ -25,31 +25,45 @@ app.config["BASE_URL"] = public_url
 vs = VideoStream(src=0).start()
 time.sleep(1.0)
 
+car_cascade = cv2.CascadeClassifier('cars.xml')
+
 
 @app.route('/')
 def hello_world():
     return 'Hello World!'
 
+
 @app.route("/video_feed")
 def video_feed():
-    image = jpg()
-    return Response(image, mimetype = "multipart/x-mixed-replace; boundary=frame")
+    frame = movie_frame()
+    image = jpg(frame)
+    return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
+@app.route("/car")
+def car():
+    frame = movie_frame()
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Detects cars of different sizes in the input image
+    cars = car_cascade.detectMultiScale(gray, 1.1, 1)
+    # To draw a rectangle in each cars
+    for (x, y, w, h) in cars:
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+    image = jpg(frame)
+    return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-def jpg():
+def movie_frame():
     frame = vs.read()
-
-    outputFrame = imutils.rotate(frame, 90)
-
+    return imutils.rotate(frame, 90)
 
 
-    (flag, encodedImage) = cv2.imencode(".jpg", outputFrame)
-
+def jpg(frame):
+    (flag, encodedImage) = cv2.imencode(".jpg", frame)
     return b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n'
 
-jpg()
 
 if __name__ == '__main__':
     app.run()
