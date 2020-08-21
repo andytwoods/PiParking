@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calibrate</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+          integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+            integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+            integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+            crossorigin="anonymous"></script>
+
+</head>
+<body>
+
+<h1>Calibrate</h1>
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <img src="/image" id="image" alt="image of street" class="img-fluid">
+        </div>
+        <div class="col-12">
+            <button class="btn btn-primary mt-4" onclick="send()">send</button>
+        </div>
+    </div>
+</div>
+<script>
+    var radius = 30;
+    var info = {coords: [], radius: radius}
+    $("#image").click(function (e) {
+        var parentOffset = $(this).parent().offset();
+        //or $(this).offset(); if you really just want the current element's offset
+        var relX = e.pageX - parentOffset.left;
+        var relY = e.pageY - parentOffset.top;
+        info.coords.push({x: relX, y: relY});
+        $('#image').parent().append("<div style='position:absolute;left:" + (relX - radius) + "px;top:" + (relY - radius) + "px;width:" + radius * 2 + "px; height:" + radius * 2 + "px;background-color:red;z-index:10000;border-radius: " + radius + "px;'></div>")
+    });
+
+    function send() {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                alert('received');
+            }
+        }
+        xhr.open("POST", '', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify(info));
+    }
+
+
+</script>
+
+</body>
+</html>

@@ -2,7 +2,7 @@ import time
 
 import cv2
 import imutils
-from flask import Flask
+from flask import Flask, render_template, request, jsonify
 from flask import Response
 from flask_assistant import Assistant, ask
 from imutils.video import VideoStream
@@ -40,6 +40,8 @@ app.config['INTEGRATIONS'] = ['ACTIONS_ON_GOOGLE']
 vs = VideoStream(src=0).start()
 time.sleep(1.0)
 
+car_cascade = cv2.CascadeClassifier('cars.xml')
+
 
 @app.route("/image")
 @cache.cached(timeout=5)
@@ -48,6 +50,30 @@ def video_feed():
     image = jpg(frame)
     return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
 
+
+@app.route("/car")
+def car():
+    frame = movie_frame()
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.equalizeHist(gray)
+    # Detects cars of different sizes in the input image
+    cars = car_cascade.detectMultiScale(gray, 1.1, 1)
+    # To draw a rectangle in each cars
+    for (x, y, w, h) in cars:
+        cv2.rectangle(gray, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+    image = jpg(gray)
+    return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
+
+
+@app.route("/calibrate", methods = ['GET', 'POST',])
+def calibrate():
+    if request.method == 'POST':
+        content = request.get_json(silent=True)
+        print(content) # Do your processing
+        return jsonify({})
+    return render_template("calibrate.html", title='Projects')
 
 def movie_frame():
     frame = vs.read()
