@@ -8,10 +8,20 @@ from flask_assistant import Assistant, ask
 from imutils.video import VideoStream
 from pyngrok import ngrok
 from pyngrok.conf import PyngrokConfig
+from flask_caching import Cache
 
+config = {
+    #"DEBUG": True,          # some Flask specific configs
+    "CACHE_TYPE": "simple", # Flask-Caching related configs
+    "CACHE_DEFAULT_TIMEOUT": 300
+}
+
+cache = Cache(config={'CACHE_TYPE': 'simple'})
 app = Flask(__name__)
+app.config.from_mapping(config)
 app.config['INTEGRATIONS'] = ['ACTIONS_ON_GOOGLE']
 assist = Assistant(app, route='/', project_id='piparking-lauj')
+cache.init_app(app)
 
 port = 5000
 
@@ -24,11 +34,15 @@ print(f" * ngrok tunnel {public_url} -> http://127.0.0.1:{port}")
 
 # Update any base URLs or webhooks to use the public ngrok URL
 app.config["BASE_URL"] = public_url
+
+app.config['INTEGRATIONS'] = ['ACTIONS_ON_GOOGLE']
+
 vs = VideoStream(src=0).start()
 time.sleep(1.0)
 
 
 @app.route("/image")
+@cache.cached(timeout=5)
 def video_feed():
     frame = movie_frame()
     image = jpg(frame)
@@ -45,13 +59,13 @@ def jpg(frame):
     return b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n'
 
 
-@assist.action('parking')
+@assist.action('Default Welcome Intent')
 def parking():
     resp = ask("Here's a photo of the parking situation")
-
     resp.card(text='Parking situation',
               title='Cars',
-              img_url='https://piparking.eu.ngrok.io/image'
+              img_url='https://piparking.eu.ngrok.io/image',
+
               )
 
     return resp
