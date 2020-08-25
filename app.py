@@ -1,5 +1,5 @@
 import time
-
+import platform
 import cv2
 import imutils
 from flask import Flask, render_template, request, jsonify
@@ -16,29 +16,35 @@ config = {
     "CACHE_DEFAULT_TIMEOUT": 300
 }
 
+WINDOWS = platform.system() == 'Windows'
+
 cache = Cache(config={'CACHE_TYPE': 'simple'})
 app = Flask(__name__)
 app.config.from_mapping(config)
+if WINDOWS:
+    app.config["CACHE_TYPE"] = "null"
+
 app.config['INTEGRATIONS'] = ['ACTIONS_ON_GOOGLE']
 assist = Assistant(app, route='/', project_id='piparking-lauj')
 cache.init_app(app)
 
 port = 5000
 
-# Open a ngrok tunnel to the dev server
-print('setting up ngrok')
-pyngrok_config = PyngrokConfig(config_path='/home/pi/.ngrok2/ngrok.yml', region='eu')
-public_url = ngrok.connect(port, options={"subdomain": 'piparking'},
-                           pyngrok_config=pyngrok_config)
-print(f" * ngrok tunnel {public_url} -> http://127.0.0.1:{port}")
+if not WINDOWS:
+    # Open a ngrok tunnel to the dev server
+    print('setting up ngrok')
+    pyngrok_config = PyngrokConfig(config_path='/home/pi/.ngrok2/ngrok.yml', region='eu')
+    public_url = ngrok.connect(port, options={"subdomain": 'piparking'},
+                               pyngrok_config=pyngrok_config)
+    print(f" * ngrok tunnel {public_url} -> http://127.0.0.1:{port}")
 
-# Update any base URLs or webhooks to use the public ngrok URL
-app.config["BASE_URL"] = public_url
+    # Update any base URLs or webhooks to use the public ngrok URL
+    app.config["BASE_URL"] = public_url
 
-app.config['INTEGRATIONS'] = ['ACTIONS_ON_GOOGLE']
+    app.config['INTEGRATIONS'] = ['ACTIONS_ON_GOOGLE']
 
-vs = VideoStream(src=0).start()
-time.sleep(1.0)
+    vs = VideoStream(src=0).start()
+    time.sleep(1.0)
 
 car_cascade = cv2.CascadeClassifier('cars.xml')
 
