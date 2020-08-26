@@ -1,7 +1,9 @@
+import json
 import time
 import platform
 import cv2
 import imutils
+import numpy as np
 from flask import Flask, render_template, request, jsonify
 from flask import Response
 from flask_assistant import Assistant, ask
@@ -15,6 +17,15 @@ config = {
     "CACHE_TYPE": "simple", # Flask-Caching related configs
     "CACHE_DEFAULT_TIMEOUT": 300
 }
+
+coords_file = 'data.txt'
+coords = None
+try:
+    with open('data.txt') as json_file:
+        coords = json.load(json_file)
+        print('co-ords loaded')
+except FileNotFoundError:
+    pass
 
 WINDOWS = platform.system() == 'Windows'
 
@@ -57,6 +68,41 @@ def video_feed():
     return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
+@app.route("/pc")
+def pc():
+    raw = cv2.imread('cars3.jpg')
+    # raw = cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY)
+    wide = imutils.auto_canny(raw)
+
+    height, width = wide.shape
+
+    marker_width = coords['width']
+    for coord in coords['coords']:
+        x = coord['x']
+        y = coord['y']
+        x_max = x + marker_width
+        y_max = y + marker_width
+
+        if x_max > width:
+            x_max = width
+        if y_max > height:
+            y_max = height
+
+        if y < 0:
+            y = 0
+        if x < 0:
+            x = 0
+
+        box = wide[y: y_max, x: x_max]
+
+        n_white_pix = np.sum(box == 255)
+        percent_white = n_white_pix / marker_width**2
+        print(percent_white, n_white_pix)
+
+    image = jpg(box)
+
+    return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
+
 @app.route("/car")
 def car():
     frame = movie_frame()
@@ -76,12 +122,19 @@ def car():
 @app.route("/calibrate", methods = ['GET', 'POST',])
 def calibrate():
     if request.method == 'POST':
-        content = request.get_json(silent=True)
-        print(content) # Do your processing
+        global coords
+        coords = request.get_json(silent=True)
+
+        with open(coords_file, 'w') as outfile:
+            json.dump(coords, outfile)
+
+        print(coords) # Do your processing
         return jsonify({})
     return render_template("calibrate.html", title='Projects')
 
 def movie_frame():
+    if WINDOWS:
+        return cv2.imread('cars3.jpg')
     frame = vs.read()
     return imutils.rotate(frame, 90)
 

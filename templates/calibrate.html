@@ -18,27 +18,38 @@
 </head>
 <body>
 
-<h1>Calibrate</h1>
+
 <div class="container">
+    <h1>Calibrate</h1>
+    <p>Select the cars. Change the size of the selector, via the slider, before hand. Refresh browser to restart!</p>
     <div class="row">
         <div class="col-12">
             <img src="/image" id="image" alt="image of street" class="img-fluid">
         </div>
         <div class="col-12">
-            <button class="btn btn-primary mt-4" onclick="send()">send</button>
+            <button class="btn btn-primary btn-lg mt-4" onclick="send()">send</button>
+        </div>
+        <div class="col-12 mt-5">
+            <div class="slidecontainer">
+                <input type="range" onchange="sliderChange(this.value)" min="1" max="100" value="50" style='width:100%'
+                       class="slider" id="myRange">
+            </div>
+            <div id="demo_placer"/>
         </div>
     </div>
 </div>
 <script>
-    var radius = 30;
-    var info = {coords: [], radius: radius}
+    var min_radius = 10;
+    var max_radius = 50;
+    var _width = 30;
+    var info = {coords: [], width: _width}
     $("#image").click(function (e) {
         var parentOffset = $(this).parent().offset();
         //or $(this).offset(); if you really just want the current element's offset
         var relX = e.pageX - parentOffset.left;
         var relY = e.pageY - parentOffset.top;
         info.coords.push({x: relX, y: relY});
-        $('#image').parent().append("<div style='position:absolute;left:" + (relX - radius) + "px;top:" + (relY - radius) + "px;width:" + radius * 2 + "px; height:" + radius * 2 + "px;background-color:red;z-index:10000;border-radius: " + radius + "px;'></div>")
+        $('#image').parent().append(genMarker('', relX, relY))
     });
 
     function send() {
@@ -51,6 +62,27 @@
         xhr.open("POST", '', true);
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.send(JSON.stringify(info));
+    }
+
+    function sliderChange(val) {
+        _width = Math.round((max_radius - min_radius) * val * .01 + min_radius);
+        updateDemo();
+    }
+
+    function updateDemo() {
+        $('#demo').remove();
+        var parentOffset = $('#demo_placer').parent().offset();
+        var relX = $('#demo_placer').pageX - parentOffset.left;
+        var relY = $('#demo_placer').pageY - parentOffset.top;
+        var marker = genMarker('demo', relX, relY);
+        $('#demo_placer').append(marker);
+    }
+
+    updateDemo();
+
+    function genMarker(id, relX, relY) {
+        if (!id) id = '';
+        return "<div id='" + id + "' style='position:absolute;left:" + (relX - _width) + "px;top:" + (relY - _width) + "px;width:" + _width * 2 + "px; height:" + _width * 2 + "px;background-color:red;z-index:10000;__border-radius: " + _width + "px;'></div>"
     }
 
 
