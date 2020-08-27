@@ -6,15 +6,15 @@ import imutils
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from flask import Response
-from flask_assistant import Assistant, ask
+from flask_assistant import Assistant, ask, tell
 from imutils.video import VideoStream
 from pyngrok import ngrok
 from pyngrok.conf import PyngrokConfig
 from flask_caching import Cache
 
 config = {
-    #"DEBUG": True,          # some Flask specific configs
-    "CACHE_TYPE": "simple", # Flask-Caching related configs
+    # "DEBUG": True,          # some Flask specific configs
+    "CACHE_TYPE": "simple",  # Flask-Caching related configs
     "CACHE_DEFAULT_TIMEOUT": 300
 }
 
@@ -68,18 +68,23 @@ def video_feed():
     return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route("/pc")
-def pc():
-    raw = cv2.imread('cars3.jpg')
-    # raw = cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY)
-    wide = imutils.auto_canny(raw)
+def process_image(raw, mark_image=False):
+    cannyd = imutils.auto_canny(raw)
 
-    height, width = wide.shape
+    height, width = cannyd.shape
 
     marker_width = coords['width']
+    marker_halfwidth = int(marker_width * .5)
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale = .5
+    color = (255, 0, 0)
+    thickness = 2
+    spaces_left = len(coords['coords'])
+
     for coord in coords['coords']:
-        x = coord['x']
-        y = coord['y']
+        x = int(coord['x']) - marker_width
+        y = int(coord['y']) - marker_halfwidth
         x_max = x + marker_width
         y_max = y + marker_width
 
@@ -93,15 +98,44 @@ def pc():
         if x < 0:
             x = 0
 
-        box = wide[y: y_max, x: x_max]
+        box = cannyd[y: y_max, x: x_max]
 
         n_white_pix = np.sum(box == 255)
-        percent_white = n_white_pix / marker_width**2
-        print(percent_white, n_white_pix)
+        percent_white = round(n_white_pix / marker_halfwidth ** 2, 2)
 
-    image = jpg(box)
+        if percent_white > .1:
+            spaces_left -= 1
+
+        if mark_image:
+            start_point = (x, y)
+            end_point = (x_max, y_max)
+            cannyd = cv2.rectangle(cannyd, start_point, end_point, (255, 0, 0), 2)
+
+            cannyd = cv2.putText(cannyd, str(percent_white), (x, y - marker_halfwidth), font,
+                                 fontScale, color, thickness, cv2.LINE_AA)
+
+    return cannyd, spaces_left
+
+
+@app.route("/see")
+def see():
+    raw = movie_frame()
+    cannyd, _ = process_image(raw, True)
+    image = jpg(cannyd)
+    return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
+
+
+@app.route("/pc")
+def pc():
+    raw = cv2.imread('cars3.jpg')
+    # raw = cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY)
+
+    cannyd, _ = process_image(raw, True)
+
+    image = jpg(cannyd)
 
     return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
+
 
 @app.route("/car")
 def car():
@@ -119,7 +153,7 @@ def car():
     return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route("/calibrate", methods = ['GET', 'POST',])
+@app.route("/calibrate", methods=['GET', 'POST', ])
 def calibrate():
     if request.method == 'POST':
         global coords
@@ -128,9 +162,10 @@ def calibrate():
         with open(coords_file, 'w') as outfile:
             json.dump(coords, outfile)
 
-        print(coords) # Do your processing
+        print(coords)  # Do your processing
         return jsonify({})
     return render_template("calibrate.html", title='Projects')
+
 
 def movie_frame():
     if WINDOWS:
@@ -144,19 +179,26 @@ def jpg(frame):
     return b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n'
 
 
+@app.route("/count")
+def count():
+    raw = movie_frame()
+    _, spaces_left = process_image(raw, mark_image=False)
+    return str(spaces_left)
+
+
 @assist.action('Default Welcome Intent')
 def parking():
-    resp = ask("Here's a photo of the parking situation")
-    resp.card(text='Parking situation',
-              title='Cars',
-              img_url='https://piparking.eu.ngrok.io/image',
+    raw = movie_frame()
+    _, spaces_left = process_image(raw, mark_image=False)
 
-              )
+    if spaces_left > 1:
+        return tell(f"{spaces_left} spaces left")
 
-    return resp
+    elif spaces_left == 1:
+        return tell(f"1 space left")
 
+    return tell("no spaces left")
 
 
 if __name__ == '__main__':
     app.run()
-
