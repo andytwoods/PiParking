@@ -4,6 +4,7 @@ import platform
 import cv2
 import imutils
 import numpy as np
+import requests
 from flask import Flask, render_template, request, jsonify
 from flask import Response
 from flask_assistant import Assistant, ask, tell
@@ -11,6 +12,7 @@ from imutils.video import VideoStream
 from pyngrok import ngrok
 from pyngrok.conf import PyngrokConfig
 from flask_caching import Cache
+from flask_ask import Ask, statement
 
 config = {
     # "DEBUG": True,          # some Flask specific configs
@@ -31,12 +33,12 @@ WINDOWS = platform.system() == 'Windows'
 
 cache = Cache(config={'CACHE_TYPE': 'simple'})
 app = Flask(__name__)
+ask = Ask(app, '/')
 app.config.from_mapping(config)
 if WINDOWS:
     app.config["CACHE_TYPE"] = "null"
 
 app.config['INTEGRATIONS'] = ['ACTIONS_ON_GOOGLE']
-assist = Assistant(app, route='/', project_id='piparking-lauj')
 cache.init_app(app)
 
 port = 5000
@@ -45,9 +47,9 @@ if not WINDOWS:
     # Open a ngrok tunnel to the dev server
     print('setting up ngrok')
     pyngrok_config = PyngrokConfig(config_path='/home/pi/.ngrok2/ngrok.yml', region='eu')
-    public_url = ngrok.connect(port, options={"subdomain": 'piparking'},
+    public_url = ngrok.connect(port, options={"subdomain": 'woods'},
                                pyngrok_config=pyngrok_config)
-    print(f" * ngrok tunnel {public_url} -> http://127.0.0.1:{port}")
+    print(' * ngrok tunnel {public_url} -> http://127.0.0.1:' + str(port))
 
     # Update any base URLs or webhooks to use the public ngrok URL
     app.config["BASE_URL"] = public_url
@@ -56,8 +58,6 @@ if not WINDOWS:
 
     vs = VideoStream(src=0).start()
     time.sleep(1.0)
-
-car_cascade = cv2.CascadeClassifier('cars.xml')
 
 
 @app.route("/image")
@@ -137,21 +137,6 @@ def pc():
     return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route("/car")
-def car():
-    frame = movie_frame()
-
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray = cv2.equalizeHist(gray)
-    # Detects cars of different sizes in the input image
-    cars = car_cascade.detectMultiScale(gray, 1.1, 1)
-    # To draw a rectangle in each cars
-    for (x, y, w, h) in cars:
-        cv2.rectangle(gray, (x, y), (x + w, y + h), (0, 0, 255), 2)
-
-    image = jpg(gray)
-    return Response(image, mimetype="multipart/x-mixed-replace; boundary=frame")
-
 
 @app.route("/calibrate", methods=['GET', 'POST', ])
 def calibrate():
@@ -179,26 +164,17 @@ def jpg(frame):
     return b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n'
 
 
-@app.route("/count")
-def count():
-    raw = movie_frame()
-    _, spaces_left = process_image(raw, mark_image=False)
-    return str(spaces_left)
 
+@ask.intent('HelloWorldIntent')
+def hello(my_direction, duration):
+    my_url = "http://192.168.1.239:5000/" + my_direction
+    if duration and len(duration) > 0:
+        seconds = duration[2:-1]
+        my_url += '/' + seconds
+    resp = requests.get(my_url)
+    return statement('done')
 
-@assist.action('Default Welcome Intent')
-def parking():
-    raw = movie_frame()
-    _, spaces_left = process_image(raw, mark_image=False)
-
-    if spaces_left > 1:
-        return tell(f"{spaces_left} spaces left")
-
-    elif spaces_left == 1:
-        return tell(f"1 space left")
-
-    return tell("no spaces left")
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', port=port)

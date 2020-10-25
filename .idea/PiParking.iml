@@ -4,7 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/VE" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.6 (PiParking)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Remote Python 3.7.3 (sftp://pi@192.168.1.100:22/home/pi/.virtualenvs/py3cv4/bin/python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="markerjs" level="application" />
   </component>

@@ -2,8 +2,8 @@
 <project version="4">
   <component name="WebServers">
     <option name="servers">
-      <webServer id="e5a172f5-c21d-4b32-ade5-6f5a2ddabe05" name="pi@192.168.1.100:22 password" url="http://www.google..com">
-        <fileTransfer rootFolder="/home/pi" accessType="SFTP" host="192.168.1.100" port="22" sshConfigId="3a628ce8-8178-40da-bb36-60462fc4ec61" sshConfig="py3cv4" />
+      <webServer id="e5a172f5-c21d-4b32-ade5-6f5a2ddabe05" name="pi@192.168.1.100:22 password (project level)" url="http://www.google..com">
+        <fileTransfer rootFolder="/home/pi" accessType="SFTP" host="192.168.1.100" port="22" sshConfigId="3a628ce8-8178-40da-bb36-60462fc4ec61" sshConfig="pi@192.168.1.100:22 password" />
       </webServer>
     </option>
   </component>
